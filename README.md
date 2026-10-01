@@ -13,8 +13,9 @@ Claude drafts the design
   → Claude rebuts or accepts each point with evidence, revises the doc   (≤2 rounds)
   → ★ you approve the design ★
   → Grok implements (a supervised worker in its own terminal tab)
+     UI / front-end chunks go to a Claude Sonnet worker instead
   → Claude reviews the diff, re-runs the tests                            (≤3 rounds)
-  → Grok fixes → report
+  → the same worker fixes → report
 ```
 
 Starting a whole service from scratch? `/team foundation <service>` first settles the charter, the
@@ -57,7 +58,8 @@ Both skills work in either direction because **Grok Build reads `~/.claude/skill
   supervised Orca worker with a visible terminal tab. Foundation mode and the Grok-driven fallback
   work without it.
 
-Tested with Claude Code 2.1.273–2.1.280 (Claude Opus 5) and Grok Build 1.0.30–1.0.40 on macOS.
+Tested with Claude Code 2.1.273–2.1.286 (Claude Opus 5, Sonnet 5.5 workers), Grok Build 1.0.30–1.0.46
+and Orca 1.4.204 on macOS.
 
 ## Install
 
@@ -87,16 +89,29 @@ Claude will:
 1. write `docs/design/<date>-<slug>.md` (scope, signatures, order, definition of done, what is deliberately not built)
 2. get Grok's adversarial review via `grok-turn.sh` (critical / missing / ambiguous, with evidence), check each item against the code, and revise the doc or rebut
 3. **stop and show you a summary — nothing is implemented until you say "approve"**
-4. spawn Grok as an Orca orchestration worker (`worker-start --agent grok`) and answer its questions
+4. spawn the implementer as an Orca orchestration worker and answer its questions: Grok
+   (`worker-start --agent grok`), or for UI work a Claude Sonnet worker
+   (`--agent claude --model sonnet`)
 5. review the diff, re-run the tests, and dispatch fixes to the same worker until approved (max 3 rounds)
 6. report: what the review changed, files touched, tests, cost
 
-No Orca? Claude still does steps 1–3, then tells you to run `/team implement <design doc>` in Grok Build.
+No Orca? Claude still does steps 1–3, then tells you to run `/team implement <design doc>` in Grok Build
+(for a UI design: implement it in `claude --model sonnet`, then come back for the review).
+
+**Who implements.** The design doc names an implementer per chunk. UI work goes to `sonnet`, which
+covers visual design, front-end screens, components, styles, templates and UI copy. Everything else
+goes to `grok`. A feature with both is split into chunks whose files don't overlap, with the contract
+between them written in the design doc, and the chunks run in parallel. Override the routing with
+`--implementer grok|sonnet`. Sonnet runs as an Orca worker rather than a subagent, so it follows the
+same task → question → `worker_done` → fix loop as Grok, in a tab you can watch. Because a Sonnet diff
+is reviewed by the same model family, Grok also reviews it (non-blocking). `sonnet` is an alias, so
+the worker follows the newest Sonnet.
 
 Optional: with the [ponytail](https://github.com/DietrichGebert/ponytail) plugin installed, step 5 also
 runs its `ponytail-review` on the diff — an over-engineering delete-list that Claude filters before
-passing it to Grok. Keep ponytail's always-on mode off (`~/.config/ponytail/config.json`:
-`{"defaultMode": "off"}`); the team skill never invokes the main `ponytail` skill.
+passing it to the worker. Keep ponytail's always-on mode off (`~/.config/ponytail/config.json`:
+`{"defaultMode": "off"}`); the team skill never invokes the main `ponytail` skill. Grok Build also
+lists Claude Code plugin skills, so the worker spec tells the implementer not to invoke it either.
 
 ### Foundation (a service from scratch)
 
@@ -180,6 +195,7 @@ A Grok adversarial review turn costs roughly $0.25–0.4.
 - The default feature path needs Orca. Foundation mode and the Grok-driven fallback work anywhere.
 - Foundation mode is new and has not had a full run yet — watch the first one.
 - In Claude-driven runs a Grok worker can stall on its own edit-approval prompt; the skill tells Claude how to release it, but watch the tab.
+- A Claude (Sonnet) worker started in a folder Claude Code hasn't trusted yet exits at the trust prompt, which defaults to "No, exit". Workers in the driver's own worktree are fine; for other placements, open `claude` there once first.
 
 ## Layout
 

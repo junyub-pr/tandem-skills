@@ -13,8 +13,9 @@ Claude가 설계 초안 작성
   → Claude가 항목별로 근거를 들어 반박/수용하고 문서 수정      (최대 2라운드)
   → ★ 사람이 설계 승인 ★
   → Grok이 구현 (자기 터미널 탭에서 도는 감독받는 워커)
+     UI·프론트엔드 청크는 Claude Sonnet 워커가 대신 구현
   → Claude가 diff 리뷰 + 테스트 재실행                          (최대 3라운드)
-  → Grok이 수정 → 보고
+  → 같은 워커가 수정 → 보고
 ```
 
 서비스를 처음부터 만드나요? `/team foundation <서비스>`가 먼저 서비스 정본(charter), 되돌리기 비싼
@@ -54,7 +55,7 @@ MCP도, 데몬도 없습니다. `claude -p`와 `grok`을 헤드리스로 부르�
 - [Orca](https://github.com/stablyai/orca) — 기본 기능 경로에서 필요 (Grok이 터미널 탭이 보이는 Orca
   워커로 실행됨). 기초 설계 모드와 Grok 주도 대체 경로는 없어도 동작
 
-Claude Code 2.1.273–2.1.280 (Claude Opus 5), Grok Build 1.0.30–1.0.40, macOS에서 테스트.
+Claude Code 2.1.273–2.1.286 (Claude Opus 5, Sonnet 5.5 워커), Grok Build 1.0.30–1.0.46, Orca 1.4.204, macOS에서 테스트.
 
 ## 설치
 
@@ -84,15 +85,26 @@ Claude가:
 1. `docs/design/<날짜>-<slug>.md` 작성 (범위, 시그니처, 순서, 완료 기준, 일부러 안 만드는 것)
 2. `grok-turn.sh`로 Grok의 적대 검토를 받고 (치명 / 누락 / 모호, 근거 첨부) 항목별로 코드를 확인해 문서 수정 또는 반박
 3. **멈추고 요약을 보여줌 — "승인"이라고 할 때까지 아무것도 구현하지 않음**
-4. Grok을 Orca orchestration 워커로 띄우고(`worker-start --agent grok`) 질문에 답함
+4. 구현자를 Orca orchestration 워커로 띄우고 질문에 답함 — Grok(`worker-start --agent grok`), UI 작업이면
+   Claude Sonnet 워커(`--agent claude --model sonnet`)
 5. diff 리뷰 + 테스트 재실행, 승인될 때까지 같은 워커에게 수정 지시 (최대 3라운드)
 6. 보고: 검토로 바뀐 것, 변경 파일, 테스트, 비용
 
-Orca가 없으면? Claude가 1~3단계까지 하고, Grok Build에서 `/team implement <설계 문서>`를 실행하라고 안내합니다.
+Orca가 없으면? Claude가 1~3단계까지 하고, Grok Build에서 `/team implement <설계 문서>`를 실행하라고 안내합니다
+(UI 설계라면 `claude --model sonnet`에서 구현한 뒤 리뷰를 받으러 돌아오라고 안내).
+
+**구현자 선택.** 설계 문서에 청크마다 구현자를 적습니다. 시각 디자인, 프론트엔드 화면, 컴포넌트, 스타일,
+템플릿, UI 문구 같은 UI 작업은 `sonnet`이 맡고, 나머지는 `grok`이 맡습니다. 둘이 섞인 기능은 파일이 겹치지
+않게 청크를 나눕니다. 청크 사이 계약은 설계 문서에 적어 두고, 두 청크를 병렬로 돌립니다. 요청에
+`--implementer grok|sonnet`을 쓰면 전체를 한쪽으로 고정합니다. Sonnet은 서브에이전트가 아니라 Orca
+워커로 띄웁니다. 그래야 Grok과 같은 task → 질문 → `worker_done` → 수정 루프를 타고, 지켜볼 수 있는
+탭에서 돕니다. Sonnet이 짠 diff는 리뷰어와 같은 Claude 계열이라 Grok도 함께 리뷰합니다(결과를 기다리지는
+않음). `sonnet`은 별칭이어서 워커가 항상 최신 Sonnet을 따라갑니다.
 
 선택: [ponytail](https://github.com/DietrichGebert/ponytail) 플러그인이 설치되어 있으면 5단계에서 diff에 `ponytail-review`도
-돌립니다 — 과설계만 보는 삭제 목록이고, Claude가 걸러서 받아들인 것만 Grok에게 넘깁니다. ponytail의 상시 모드는
+돌립니다 — 과설계만 보는 삭제 목록이고, Claude가 걸러서 받아들인 것만 워커에게 넘깁니다. ponytail의 상시 모드는
 꺼 두세요(`~/.config/ponytail/config.json`: `{"defaultMode": "off"}`). team 스킬은 `ponytail` 본체 스킬을 부르지 않습니다.
+Grok Build도 Claude Code 플러그인 스킬을 목록에 올리므로, 워커 스펙에서 구현자에게도 부르지 말라고 지시합니다.
 
 ### 기초 설계 (서비스를 처음부터)
 
@@ -172,6 +184,7 @@ Grok 적대 검토 한 턴은 약 $0.25~0.4.
 - 기본 기능 경로는 Orca 필요. 기초 설계 모드와 Grok 주도 대체 경로는 어디서든 동작.
 - 기초 설계 모드는 새로 추가되어 아직 전체 실행 전 — 첫 실행을 지켜보세요.
 - Claude 주도 실행에서 Grok 워커가 자기 편집 승인 프롬프트에서 멈출 수 있음; 스킬이 Claude에게 푸는 법을 알려 주지만 탭을 지켜보세요.
+- Claude Code가 아직 신뢰하지 않은 폴더에서 Claude(Sonnet) 워커를 띄우면 폴더 신뢰 확인 창에서 종료됨 (기본 선택이 "No, exit"). 드라이버가 도는 워크트리에서는 문제없고, 다른 위치라면 먼저 그곳에서 `claude`를 한 번 열어 수락하세요.
 
 ## 구조
 
