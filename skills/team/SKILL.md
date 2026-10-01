@@ -1,10 +1,11 @@
 ---
 name: team
 description: >-
-  Cross-model agent team: Claude designs and reviews, Grok implements. Feature mode (default): Claude
+  Cross-model agent team: Claude designs and reviews, Grok implements (UI and front-end work goes to a
+  Claude Sonnet worker). Feature mode (default): Claude
   drafts the design -> a Claude reviewer subagent and Grok attack it in parallel -> Claude revises ->
-  human approves -> Grok implements as an Orca worker (or Claude, if the user asks) -> a Claude
-  reviewer subagent reviews the code. Foundation mode ("/team foundation
+  human approves -> Grok (Sonnet for UI chunks) implements as an Orca worker (or Claude, if the user
+  asks) -> a Claude reviewer subagent reviews the code. Foundation mode ("/team foundation
   <service>"): for a service designed from scratch or re-founded - Claude drafts the charter with the
   user, the expensive-to-reverse decisions and a slice map, Grok attacks them, the human approves,
   then every slice runs through feature mode. Run it from Claude Code (the default). From Grok Build,
@@ -12,7 +13,7 @@ description: >-
   implements itself. Triggers: "/team", "/team foundation", "have grok implement this", "design then
   let grok code", "work as a team", "like Agent Teams", "design the whole service from scratch".
   Trivial edits (1-2 files) don't need a team - just do them.
-argument-hint: "[foundation|implement] [--reviewer both|claude|grok] <feature, task, service or design doc>"
+argument-hint: "[foundation|implement] [--reviewer both|claude|grok] [--implementer grok|sonnet] <feature, task, service or design doc>"
 allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 ---
 
@@ -33,7 +34,9 @@ This skill is loaded by both Claude Code and Grok Build. First pick the mode, th
   (the default)**. C needs this worktree to be Orca-managed: `orca worktree current --json` returns
   `"ok": true` (`orca status` is not enough — it succeeds anywhere). No Orca → still run C-1 up to
   and including the approval gate, then tell the user to open Grok Build in this repo and run
-  `/team implement <design doc path>`.
+  `/team implement <design doc path>` (implementer `sonnet`: open `claude --model sonnet` in this repo,
+  have it implement the design doc in its order and scope without committing, then come back here
+  for C-4).
 - **I am Grok** → [G. Grok-driven](#g-grok-driven-feature-mode-fallback) (the fallback), including the
   `/team implement <design doc path>` entry. Foundation mode is Claude-only: if asked for it, tell the
   user to run `/team foundation …` in Claude Code, and stop.
@@ -47,8 +50,9 @@ This skill is loaded by both Claude Code and Grok Build. First pick the mode, th
 
 ## Shared rules
 
-Design and code review belong to Claude, code writing belongs to Grok (unless the user asks Claude to
-implement — C-2). **A design goes to implementation only after the adversarial review (T6: a Claude
+Design and code review belong to Claude, code writing belongs to Grok — UI work to a Claude Sonnet
+worker ([implementer routing](#implementer-routing)) — unless the user asks Claude to implement (C-2).
+**A design goes to implementation only after the adversarial review (T6: a Claude
 reviewer subagent and Grok in parallel) → Claude's rebuttal/acceptance and revision** (design review
 ≤2 rounds per design; code review ≤3 rounds). Commit only when the user asks. Never
 run verification that writes to production databases or external services. The user is involved
@@ -80,6 +84,23 @@ summary):
 If a source the bar asks for can't be reached (a tool is refused, a service isn't authenticated),
 write `not verified: <reason>` in that place. Never guess to fill the gap.
 
+### Implementer routing
+In Claude-driven runs (C), the design doc names who writes each chunk (T1 `Implementer:`):
+- **`sonnet`**: UI work. That covers visual design, front-end screens, components, styles, templates
+  and UI copy. It runs as a Claude Code Orca worker, `--agent claude --model sonnet`. Pass the alias,
+  not a pinned id, so it follows the newest Sonnet.
+- **`grok`**: everything else (the default).
+- A feature with both: split it into chunks whose files don't overlap (C-2), fix the contract between
+  them (API shape, props, routes) in the design doc, and start one worker per chunk in parallel.
+- `--implementer grok|sonnet` in the request overrides the routing for the whole run; "you implement
+  it" still means Claude itself (C-2).
+- Sonnet runs as an Orca worker rather than a subagent so that it goes through the same task →
+  question → `worker_done` → "Apply review" loop as Grok, in a tab the user can watch and step into.
+- A Sonnet chunk is reviewed by the Claude reviewer, which is the same model family, so C-4 also
+  runs the Grok code review on it (non-blocking) to keep a different model in the loop.
+
+In G (Grok-driven), Grok implements everything; this routing doesn't apply.
+
 Overall flow:
 ```
 [foundation, once per service]
@@ -90,7 +111,8 @@ charter (with the user) → ★ charter OK ★ → decision records + slice map 
 Claude design → adversarial review (T6: Claude reviewer ∥ Grok; wait for Claude only)
 → Claude rebut/accept + revise doc → (re-review ≤2)
 → ★ human approval gate (stop and wait) — Grok's late result is merged here ★
-→ Grok implements (or Claude, if asked) → Claude reviewer subagent code review → fixes (≤3) → report
+→ Grok implements (UI chunks: Sonnet; or Claude, if asked) → Claude reviewer subagent code review
+→ fixes (≤3) → report
 ```
 
 ---
@@ -104,6 +126,8 @@ File: `docs/design/<YYYYMMDD>-<slug>.md`. Do not modify source files while desig
 - Foundation (only if docs/design/foundation/ exists): the slice id (S<n>) this implements, and the
   charter sections / decision records it relies on — cited by path, never restated or re-decided.
 - Scope of change: list of files to modify or create (paths)
+- Implementer: `grok` | `sonnet` (implementer routing). Split between both → the files each chunk
+  owns and the contract between the chunks.
 - Interfaces, schemas, function signatures (concrete enough that the implementer never guesses)
 - Step-by-step implementation order
 - Definition of done: test commands/conditions that must pass, manual checks
@@ -162,6 +186,7 @@ turn and wait for their answer**:
 - Document: docs/design/….md   (slice S<n>, if there is a foundation)
 - One-line summary: …
 - Scope: N files (create …, modify …)
+- Implementer: grok | sonnet (per chunk, if split)
 - Key decisions (3–5): …
 - Adversarial review: Claude reviewer raised N / Grok raised M (or: still running — merged when it
   arrives, see T6) → Claude accepted N (what changed) / rebutted N (why)
@@ -175,7 +200,8 @@ turn and wait for their answer**:
 Reply "approve" or "go" to proceed. Otherwise tell me what to change.
 ```
 - **"approve" / "go" / "proceed"** → set the slice to `designed` (if there is a foundation), then
-  C-2 (Claude-driven: dispatch Grok; Claude writes the code itself only if the user asked for that),
+  C-2 (Claude-driven: dispatch the implementer workers; Claude writes the code itself only if the
+  user asked for that),
   or the no-Orca hand-off (section 0), or G-2.
 - **Change requests** → revise the doc, summarize only what changed and show the gate again. A
   substantial change gets a fresh adversarial review (a new ≤2 count) before the gate.
@@ -196,8 +222,8 @@ Reply "approve" or "go" to proceed. Otherwise tell me what to change.
 - Design doc: docs/design/….md (Claude draft → adversarial review ×N (Claude reviewer / Grok) → Claude revision)
   - What the review changed: … / What Claude rebutted and kept: …
 - Slice: S<n> → done (slices.md updated); next: S<m> (todo, dependencies done) — say "go" to start it
-- Files changed: … (Grok, or Claude if the user asked)
-- Code review: N rounds (Claude reviewer subagent; Grok too with --reviewer grok|both) — what it fixed: …
+- Files changed: … (Grok / Sonnet per chunk, or Claude if the user asked)
+- Code review: N rounds (Claude reviewer subagent; Grok too with --reviewer grok|both or on Sonnet chunks) — what it fixed: …
 - Over-engineering pass (if ponytail): N suggested → N applied (net −N lines), N rejected (why)
 - Tests: <command> passed
 - Cost and time: Grok USD per call and minutes per review; Claude reviewer minutes (what is known)
@@ -396,11 +422,14 @@ run `/team foundation change: <what and why>` in Claude Code, and stop.
 
 ## C. Claude-driven feature mode (default)
 
-Claude designs and reviews; Grok is launched as an Orca orchestration worker (a real TUI with
-file-edit rights, visible to the user as a tab). Needs an Orca-managed worktree (section 0) — except
-when the user asks Claude to implement (C-2).
+Claude designs and reviews; the implementer (Grok, or Sonnet for UI chunks) is launched as an Orca
+orchestration worker (a real TUI with file-edit rights, visible to the user as a tab). Needs an
+Orca-managed worktree (section 0) — except when the user asks Claude to implement (C-2).
 Verified 2026-09-16: `worker-start --agent grok` → Grok followed the injected preamble and replied
 with `worker_done`. A full run on 2026-09-21 went through 2 design-review and 3 code-review rounds.
+Verified 2026-10-01 (Orca 1.4.204, Claude Code 2.1.286): `worker-start --agent claude --model sonnet`
+→ the worker came up as Sonnet 5.5, implemented a UI chunk from the design doc and replied with
+`worker_done`.
 
 ### C-1. Design doc + adversarial review (T6, mandatory)
 If `docs/design/foundation/` exists, read the charter, the accepted decisions and `slices.md` first.
@@ -416,7 +445,7 @@ one more round (T6 step 4) — 2 rounds total. Still contested after 2 → do no
 set the slice `blocked` and report both sides to the user. No Critical items left → **the approval
 gate (T3)**: end your turn and wait. Do not go to C-2 before approval.
 
-### C-2. Run + Task + Grok worker
+### C-2. Run + Task + implementer worker
 **The user asked Claude to implement** ("너가 직접 구현해", "you implement it") → skip the Orca run,
 the worker and C-3: Claude implements the design itself, in its order and scope, runs the definition
 of done, then goes to C-4 (the reviewer subagent reviews Claude's diff the same way). Steps the design
@@ -426,20 +455,35 @@ wait for C-4's APPROVE-or-fixed. Otherwise:
 orca orchestration run-create --objective "<feature>" --json
 orca orchestration task-create --spec "<spec>" --json                     # → task_id
 orca orchestration worker-start --task <task_id> --worktree current --agent grok --timeout-ms 120000 --json
+#   implementer sonnet: --agent claude --model sonnet instead of --agent grok
 orca orchestration dispatch-show --task <task_id> --json                   # → ctx_… , assignee_handle
-orca worktree set --worktree active --comment "grok implementing: <feature>" --json
+orca worktree set --worktree active --comment "<grok|sonnet> implementing: <feature>" --json
 ```
+For a Sonnet worker, check the model on the worker's screen
+(`orca terminal read --terminal <assignee_handle> --screen --json`, which shows e.g. "Sonnet 5.5"). The
+receipt's `launch.effective` only echoes the alias. If it isn't a Sonnet model, stop and tell the
+user before any code is written.
+
+A Claude worker started in a folder Claude Code hasn't trusted yet stops at the folder-trust prompt.
+In Claude Code 2.1.286 that prompt defaults to "No, exit", so the Enter that comes with the injected
+prompt makes the worker exit. `--worktree current` is already trusted because the driver runs there.
+For any other placement, have the user open `claude` there once and accept the prompt before
+starting the worker.
+
 Spec template:
 ```
 Read the design doc first: <absolute path>. Implement all of it, in its implementation order
 (or only "<part>" when this task is one of several parallel chunks).
 Definition of done: <test commands/conditions>. Include the passing results in the worker_done body.
 Rules: do not modify files outside the doc's "scope of change". If you believe the design must be
-deviated from, ask before implementing. Do not commit. On completion pass every modified file in
-worker_done --files-modified.
+deviated from, ask before implementing. Do not commit. Do not invoke the `ponytail` skill. On
+completion pass every modified file in worker_done --files-modified.
 ```
-Default: one Task = one Grok, same worktree. Parallelize only for independent chunks whose files
-don't overlap.
+The `ponytail` line is there because Grok Build also lists Claude Code plugin skills (`grok inspect`).
+Without it, a worker could auto-invoke ponytail's always-on rules in the middle of a team run.
+
+Default: one Task = one worker, same worktree. Parallelize only for independent chunks whose files
+don't overlap, for example a Grok chunk and a Sonnet chunk of the same feature.
 
 ### C-3. Wait + answer questions
 ```bash
@@ -449,12 +493,12 @@ orca orchestration check --ack <deliveryId> --wait --types worker_done,escalatio
 ```
 Timeouts, `count: 0` and heartbeats are not failures (implementation takes 15–60 min). Progress:
 `worker-read --dispatch <ctx_id> --limit 50 --json`. If the worker's output stalls for a long time,
-`orca terminal read --terminal <assignee_handle> --json` — if the Grok TUI is **waiting on an
+`orca terminal read --terminal <assignee_handle> --json` — if the worker's TUI is **waiting on an
 edit/command approval prompt**, release it with
 `orca terminal send --terminal <assignee_handle> --text "y" --enter --json` (or whatever key the
-prompt asks for). If Grok's question means the design must change, revise the doc before answering;
-a foundation-level change → F-change (it starts by stopping the worker). While Grok is dispatched,
-Claude does not edit source files.
+prompt asks for). If the worker's question means the design must change, revise the doc before
+answering; a foundation-level change → F-change (it starts by stopping the worker). While a worker
+is dispatched, Claude does not edit source files.
 
 ### C-4. Review
 Two parts, started together:
@@ -465,8 +509,8 @@ Two parts, started together:
   2026-09-23: 12.5 minutes, and it caught items Grok missed (and vice versa).
 - **Claude itself**: `git diff` + **re-run the definition-of-done tests yourself**, judged against
   the design doc (T4).
-- `--reviewer grok|both` → also T6-style Grok code review on the same request (non-blocking unless
-  `grok`). Give it the diff as a file; it cannot run shell commands.
+- `--reviewer grok|both`, or any chunk Sonnet implemented → also T6-style Grok code review on the
+  same request (non-blocking unless `grok`). Give it the diff as a file; it cannot run shell commands.
 
 **Over-engineering pass (only if the `ponytail:ponytail-review` skill is available).** After the
 correctness review, invoke it through the Skill tool on the same diff — never by typing
@@ -478,8 +522,8 @@ accessibility). An accepted item that changes an interface in the design doc →
 (show T3 again if it is substantial). Merge accepted items into the same "Apply review" spec; they
 count toward the same ≤3 rounds.
 
-Changes needed → reuse the same Grok (or, if Claude implemented, Claude applies them and the
-reviewer subagent re-checks via SendMessage):
+Changes needed → reuse the worker that wrote the chunk, Grok or Sonnet (or, if Claude implemented,
+Claude applies them and the reviewer subagent re-checks via SendMessage):
 ```bash
 orca orchestration task-create --spec "Apply review: <per-item instructions, file:line>" --json
 orca orchestration worker-start --task <new_task_id> --terminal <assignee_handle> --json
