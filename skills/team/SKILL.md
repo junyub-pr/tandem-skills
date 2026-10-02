@@ -19,6 +19,9 @@ allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 
 # /team — Claude designs and reviews, a Sonnet worker implements
 
+**Local overrides:** if `~/.claude/skills/team/local.md` exists, read it before anything else. Where it
+differs from this file or `foundation.md`, it wins.
+
 First pick the mode, then the path. Foundation mode lives in `foundation.md` next to this file; read it
 only when that path is taken.
 

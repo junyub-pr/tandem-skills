@@ -15,6 +15,9 @@ allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 
 # /debate — Claude drafts, a Sonnet critic attacks
 
+**Local overrides:** if `~/.claude/skills/debate/local.md` exists, read it before anything else. Where
+it differs from this file, it wins.
+
 Purpose: the driver and a critic on a different model argue the same proposal on evidence, back and
 forth, to produce something better than either alone. The user sets nothing up and only receives the
 result.
