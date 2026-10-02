@@ -74,8 +74,10 @@ override is in `~/.claude/skills/debate/local.md`.
 - Save Sol's text to `/tmp/team/<slug>/<name>-sol-<N>.md`. T3 and T5 count Sol's items next to the
   reviewer's.
 
-## C-4 addition
+## C-4 additions
 
-A chunk Sonnet implemented also gets a Sol code review (T4 format, non-blocking, handled as in T6
-above), so a different model family reviews it. A chunk Sol implemented is already reviewed across
-families by the Claude reviewer.
+- Claude reviewer model: code Sol wrote → `model: "opus"`. C-4's "otherwise → `sonnet`" is meant for
+  code the driver wrote; Sol's code is already reviewed across families, so it gets the stronger
+  reviewer. Code Sonnet wrote → `opus`, as in C-4.
+- A chunk Sonnet implemented also gets a Sol code review (T4 format, non-blocking, handled as in T6
+  above), so a different model family reviews it too.
