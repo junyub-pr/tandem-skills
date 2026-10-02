@@ -12,8 +12,20 @@ reasoning effort high, Codex CLI)에게 맡깁니다.
 | 코드 리뷰 | Claude 리뷰어 | 위와 같음 **+ Sonnet이 짠 청크는 Sol도 리뷰** |
 | `/debate` 비평가 | `team-reviewer` (다른 Claude 모델) | **Sol** (실패하면 원본 방식으로 대체) |
 
+## 이 포크에만 있는 스킬: `/fix`
+
+이슈 파악·수정 워크플로입니다(`skills/fix/`). `/team`의 방식(증거, 다른 모델의 반박 검토, 게이트,
+정해진 보고 형식)을 이슈에 맞게 옮겼습니다.
+- 드라이버: Claude Code(`/fix`), Codex Astra(`gpt-6-astra`)나 Sol(`gpt-6.1-sol`)(`$fix`).
+- 검토자는 항상 다른 모델입니다. Claude가 드라이버면 Astra(`team/sol-turn.sh`에 `SOL_MODEL=gpt-6-astra`),
+  Codex가 드라이버면 Claude Opus(`fix/claude-turn.sh`, 읽기 전용 헤드리스)가 검토합니다.
+- 흐름: 접수 → 읽기 전용 증거 수집 → 교차 진단 검토 → **진단 게이트**("1A 2B"로 답하는 보고) → 회귀
+  테스트·최소 수정 → 교차 수정 검토 → 결과 보고.
+- 설치: Claude·Codex가 모두 읽도록 `~/.claude/skills/fix`와 `~/.agents/skills/fix`를 이 폴더에 링크합니다.
+
 ## 파일
 
+- `skills/fix/`: `/fix` 스킬과 `claude-turn.sh`(Codex 드라이버용 읽기 전용 Claude 검토자).
 - `skills/team/local.md`, `skills/debate/local.md`: 개인 오버라이드. 원본 문서와 다르면 이쪽이 이깁니다.
 - `skills/team/sol-turn.sh`: Sol 헤드리스 읽기 전용 호출(`codex exec`, read-only sandbox, 세션 재개 지원).
 - 원본 파일 수정은 `skills/team/SKILL.md`와 `skills/debate/SKILL.md` 제목 아래의 "Local overrides" 한 단락뿐입니다.
