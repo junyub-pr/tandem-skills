@@ -20,7 +20,7 @@ override is in `~/.claude/skills/debate/local.md`.
   trust prompt.
 - `codex` on PATH is `~/.local/bin/codex`, a wrapper for the CLI bundled with the ChatGPT app
   (`~/.codex/packages/app-server-daemon/current/bin/codex`). `codex login status` not logged in →
-  stop and tell the user.
+  tell the user; workers fall back to Sonnet (below), headless Sol reviews count as failed.
 - Ponytail isn't installed for Codex (and `~/.codex` is managed elsewhere), so Sol gets ponytail's
   ladder as text in its spec (below).
 
@@ -45,6 +45,9 @@ override is in `~/.claude/skills/debate/local.md`.
   Never cut validation at trust boundaries, data-loss handling, security or accessibility. The design
   doc wins: build everything it specifies; if you think a part should be cut, ask instead of dropping it.
   ```
+- **Fallback, one way only:** a `sol` worker that can't do the work (usage limit, auth, launch
+  failure, exits without `worker_done`) → relaunch that chunk as a `sonnet` worker with the C-2 spec
+  (ponytail paragraph back), and T5 says "Sol → Sonnet: <reason>". Never move a `sonnet` chunk to Sol.
 - "Apply review" goes to the worker that wrote the chunk (`--terminal <handle>`, as in C-4).
 - No Orca: tell the user to implement the design doc in this repo with `codex -m gpt-6.1-sol -c
   model_reasoning_effort="high"` (sol) or `claude --model sonnet` (sonnet), in its order and scope
@@ -68,7 +71,7 @@ override is in `~/.claude/skills/debate/local.md`.
     folded into the code review.
 - Round 2 to Sol (T6 step 3 message): `sol-turn.sh <round-2 prompt file> <sessionId>`.
 - `error`, or `text` without `## Verdict:` → resume once with "Answer now in the required format from
-  what you have." Killed → the id is in `/tmp/team/<slug>/last-sol-session`. Still nothing → Sol's
+  what you have." Killed → the id is in `/tmp/team/<slug>/<prompt name>.sol-session`. Still nothing → Sol's
   review **failed**; say so at the gate (never read it as "no Critical items").
 - `--reviewer claude` in the request skips Sol; say at the gate that there was no cross-model review.
 - Save Sol's text to `/tmp/team/<slug>/<name>-sol-<N>.md`. T3 and T5 count Sol's items next to the
@@ -81,3 +84,17 @@ override is in `~/.claude/skills/debate/local.md`.
   reviewer. Code Sonnet wrote → `opus`, as in C-4.
 - A chunk Sonnet implemented also gets a Sol code review (T4 format, non-blocking, handled as in T6
   above), so a different model family reviews it too.
+
+## Every review request (T6, Sol included)
+
+Add to the request: "Do not ask for anything the user's request did not ask for; something the
+design or code adds with no basis in the user's words is itself a finding." A review item that
+widens the scope or drops part of the request is rebutted, not applied.
+
+## T5 addition: HTML report
+
+Besides the T5 text in chat, write `/tmp/team/<slug>/report.html` and put its absolute path on the
+first line under `## Result`. One self-contained file (CSS in `<style>`, no external scripts, fonts or
+images), in the user's language, ordered the way the user judges it: request → what was built →
+review rounds (accepted / rebutted) → tests with the command and output tail → open issues. Same
+privacy rules as chat. The T3 gate stays in chat only.

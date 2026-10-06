@@ -7,8 +7,9 @@
 #
 # Output: one JSON line {"sessionId":"…","text":"…"}; on failure it also carries "error".
 #   Resume a later round (or a killed call) with the same sessionId: Codex keeps the conversation.
-#   The id is also written to <prompt-file dir>/last-sol-session, and is the thread_id in the first
-#   line of <prompt-file dir>/sol-events.jsonl while a call is still running.
+#   The id is also written to <prompt-file minus extension>.sol-session, and is the thread_id in the
+#   first line of <prompt-file minus extension>.sol-events.jsonl while a call is still running. Side
+#   files are named after the prompt file so parallel calls in one folder don't overwrite each other.
 # Read-only: sandbox_mode="read-only" on every call (`codex exec resume` has no --sandbox flag). Codex
 #   reads files and runs read-only commands; any write fails at the OS level (verified 2026-10-02,
 #   codex-cli 0.160.0). Codex reads the repository's AGENTS.md itself. Runs from the repository root.
@@ -34,7 +35,9 @@ cd "$REPO_ROOT"
 
 OUT="$(mktemp "${TMPDIR:-/tmp}/sol-turn.XXXXXX")"
 trap 'rm -f "$OUT"' EXIT
-EVENTS="$PROMPT_DIR/sol-events.jsonl"
+BASE="${PROMPT_FILE%.*}"
+EVENTS="$BASE.sol-events.jsonl"
+ERRLOG="$BASE.sol-stderr.log"
 opts=(--json -c 'sandbox_mode="read-only"' -m "$MODEL" -c "model_reasoning_effort=\"$EFFORT\"" -o "$OUT")
 if [[ "$SESSION" == "new" || -z "$SESSION" ]]; then
   cmd=("$CODEX" exec "${opts[@]}" -)
@@ -43,18 +46,18 @@ else
 fi
 
 code=0
-"${cmd[@]}" < "$PROMPT_FILE" > "$EVENTS" 2>>"$PROMPT_DIR/sol-stderr.log" || code=$?
+"${cmd[@]}" < "$PROMPT_FILE" > "$EVENTS" 2>>"$ERRLOG" || code=$?
 
 sid="$(jq -r 'select(.type=="thread.started") | .thread_id' "$EVENTS" 2>/dev/null | head -n 1)"
 [[ -n "$sid" ]] || sid="$SESSION"
-[[ "$sid" == "new" ]] || printf '%s\n' "$sid" > "$PROMPT_DIR/last-sol-session"
+[[ "$sid" == "new" ]] || printf '%s\n' "$sid" > "$BASE.sol-session"
 text="$(cat "$OUT")"
 
 if [[ $code -eq 0 && -n "$text" ]]; then
   jq -nc --arg sid "$sid" --arg text "$text" '{sessionId: $sid, text: $text}'
 else
   err="$(jq -r 'select(.type=="error" or .type=="turn.failed") | (.message // .error.message // tostring)' "$EVENTS" 2>/dev/null | tail -n 1)"
-  [[ -n "$err" ]] || err="$(tail -n 3 "$PROMPT_DIR/sol-stderr.log" 2>/dev/null)"
+  [[ -n "$err" ]] || err="$(tail -n 3 "$ERRLOG" 2>/dev/null)"
   jq -nc --arg sid "$sid" --arg text "$text" --arg err "${err:-codex exited $code}" \
     '{sessionId: $sid, text: $text, error: $err}'
   [[ $code -ne 0 ]] || code=1

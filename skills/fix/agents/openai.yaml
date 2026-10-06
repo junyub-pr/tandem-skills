@@ -1,0 +1,5 @@
+interface:
+  display_name: "Fix"
+  short_description: "Diagnose an issue with cross-model review, then fix it"
+policy:
+  allow_implicit_invocation: false
