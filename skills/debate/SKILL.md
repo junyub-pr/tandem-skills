@@ -15,6 +15,10 @@ allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 
 # /debate — Claude drafts, a Sonnet critic attacks
 
+**Language:** write to the user in the language of their own messages (Korean if they write Korean),
+including the step-6 report and its headings. This file and the critic's output being in English
+doesn't change that.
+
 **Local overrides:** if `~/.claude/skills/debate/local.md` exists, read it before anything else. Where
 it differs from this file, it wins.
 
