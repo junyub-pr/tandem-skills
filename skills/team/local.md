@@ -2,7 +2,7 @@
 
 `SKILL.md` reads this file before anything else. Where this file and `SKILL.md` or `foundation.md`
 differ, this file wins; everything it doesn't mention follows them unchanged. Section names are
-upstream's as of `7f4f1c5` (2026-10-09): SKILL.md Rules, Feature 1–7, Orca worker, templates D R C G S
+upstream's as of `4230c6a` (2026-10-13): SKILL.md Rules, Feature 1–7, Orca worker, templates D R C G S
 T; foundation.md Found 1–6, Milestone run 1–7, Change 1–5.
 
 Upstream dropped Grok on 2026-10-01 (`f437050`). This fork puts **Sol** (GPT-6.1 Sol at high effort,
@@ -106,6 +106,30 @@ for long work inside a running service (Long work, below). The /debate override 
   lands as in The Sol reviewer's Feature rule; in a Milestone run only for risky slices (money, auth,
   data-changing migration), and waited for before that slice's commit.
 
+## Test scope and parallel (overrides Feature 6's "re-runs every definition-of-done command", template S's "Definition of done", Milestone run 5's definition-of-done re-run and "at most 3 at once")
+
+Requested 2026-10-12: a slice took about 2 hours, mostly a 40-minute regression bundle run per slice
+and run again after each fix round. PhoneGo canon: `~/work/phonego/rules/execution-contract.md`
+"테스트 실행 범위와 병렬".
+1. **Definition of done** of a chunk or slice: the tests of the files it changes and the tests that
+   use those files directly, plus the contract, money and auth regression tests the design names
+   (Milestone run additions 3) — never a broad bundle. The full suite runs once: at the end of the
+   milestone, or before T in a Feature.
+2. **Driver check**: the worker's report is a claim, so the driver runs that definition of done once.
+   After a fix round, only the tests that failed and the tests of the files the fix changed — never
+   the same bundle again.
+3. **Spec S** lists those exact test paths in "Definition of done", and adds: "테스트는 바뀐 파일의
+   테스트와 그 파일을 직접 쓰는 테스트만 한 번 돌린다. 수정 뒤에는 실패한 테스트와 바뀐 파일의
+   테스트만 다시 돌린다. 넓은 회귀·전체 테스트는 돌리지 않는다(지휘가 마일스톤 끝에 한 번 돌린다)."
+4. **Full suite**: parallel and in the background — the project's parallel tool if it has one
+   (PhoneGo: `phonego-full-tests`), else 4–6 processes split by folder, each with its own test
+   database and port, installing nothing. Meanwhile the driver applies reviews and writes the next
+   spec. A test that fails only there is run alone once (PhoneGo: `--recheck`); passing alone, it is
+   "병렬 간섭" in T, not a failure.
+5. **Parallel workers**: chunks or slices whose files don't overlap start at once, UI ones included
+   (an admin template slice beside a react-page slice). "At most 3 at once" counts only workers that
+   need their own database stack.
+
 ## Every review request (Sol included)
 
 Add to the request: "Do not ask for anything the user's request did not ask for; something the
@@ -179,8 +203,9 @@ Later milestones: `/team <name> M2` → Milestone run 1–7 with the plan in the
 3. **Verification.** A slice's definition of done runs its own tests plus the regression tests for the
    contracts it changes and the existing money and auth paths it touches; the milestone design names
    them per slice. The full suite and the done demo run at the end of the milestone, before T; a
-   failure there is fixed and re-run like any other. The driver runs a slice's definition of done once
-   before its commit; after a fix round, only the commands the fix touches. `phone_go` slices: `$phonego-ci --lane auto`
+   failure there is fixed, then only the failed tests and the fix's files are re-run (Test scope and
+   parallel). The driver runs a slice's definition of done once before its commit; after a fix round,
+   only the commands the fix touches. `phone_go` slices: `$phonego-ci --lane auto`
    on the staged slice before its commit — it checks formatting, lint and the frontend build, not
    behaviour, and runs only in the Django repo. Slices in other repos (Overdue…) use that repo's own
    checks, named in the milestone design.
@@ -210,3 +235,38 @@ in `<style>`, no external scripts, fonts or images), in the user's language, ord
 judges it: request → what was built → review rounds (accepted / rebutted) → tests with the command and
 output tail → open issues and backlog. Same privacy rules as chat. Gates (G and the milestone gate)
 stay in chat only.
+
+## Long programs (one driver session the user doesn't tend)
+
+For a program run as several projects or lanes over days, where the user asked for one session that
+keeps going without them (PhoneGo platform migration, 2026-10-11). The plan names it under its way of
+working; these rules then override the ones they name.
+1. **One session.** Overrides Milestone run additions 6: the driver doesn't end the session between
+   milestones. The user sets the auto-compact window (`/autocompact`, measured enough at 250k); a
+   project-local `SessionStart` hook with matcher `compact` prints `handoff.md`, so it is back after
+   every compaction. After a compaction read `handoff.md`, `slices.md` and the current milestone
+   design — never the old transcript or long history files.
+2. **Short re-read files.** `handoff.md` ≤ 4 KB, state only (running workers with dispatch and
+   terminal, slices in review, stops, the next step); update it at every slice transition. `plan.md`
+   one page plus a decision log. The driver reads workers' `worker_done`, reviewer verdicts,
+   `git diff --stat` and test-output tails — not whole diffs or worker transcripts.
+3. **Delegated gates.** When the user hands the milestone gates to the driver, the driver approves its
+   own milestone gate after the review rounds, records `Approved: <date> (… — driver, delegated)` and
+   goes on. Still the user's: what the plan reserves for them, a business, money or contract call with
+   no answer in the canon or legacy behaviour, logins and external consoles, production steps, a
+   canon or foundation change. Those wait as stop items; everything they don't touch keeps going.
+4. **Lanes.** A milestone may hold independent lanes (design in Figma, server code, read-only
+   research). Research and design slices whose output lives outside product Git can start before the
+   code slices' review ends (they change nothing a review could undo). A preflight login failure (an
+   MCP "Needs authentication") blocks only the slices that use that server: mark them
+   `blocked: <server> 인증 필요`, ask once in the next report, keep the rest going. Overrides the
+   preflight stop in SKILL.md Rules for these programs.
+5. **Research slices** (read-only reports): no code review; the driver checks three cited file:line
+   claims per report before accepting it.
+6. **Review cost.** Design: one review per milestone, Sol + one `team-reviewer` (Opus), the reviewer
+   also covering the risk view when a slice is risky. Code: Sonnet-written → Sol (template C through
+   `sol-turn.sh`); Sol-written → `team-reviewer` `model: "sonnet"`; risky slices (money, auth,
+   data-changing migration) → `opus` + Sol. Reviewers apply ponytail's ladder in their request; the
+   driver runs `ponytail-review` itself only on a diff over ~800 lines.
+7. **Next milestone.** The driver writes the next milestone's design while the current one builds, and
+   starts it after the current T when nothing in T is a stop item for it.
