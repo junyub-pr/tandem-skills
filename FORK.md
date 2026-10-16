@@ -55,11 +55,29 @@ reasoning effort high, Codex CLI)에게 맡깁니다. 그리고 운영 중인 �
 - 명시 호출 전용: Claude는 `disable-model-invocation`, Codex는 `agents/openai.yaml`.
 - 설치: Claude·Codex가 모두 읽도록 `~/.claude/skills/fix`와 `~/.agents/skills/fix`를 이 폴더에 링크합니다.
 
+## Codex에서 시작하는 `/team` (`$team`)
+
+원본은 Claude Code 전용이라 다른 에이전트는 멈춥니다. 이 포크는 Codex(Sol·Astra)가 지휘할 수 있게 하고,
+자리를 Claude와 반대로 둡니다(`skills/team/codex.md`).
+
+| 자리 | Claude가 지휘 | Codex가 지휘 |
+|---|---|---|
+| 설계·게이트·결정 | Claude | Codex |
+| 설계 검토 | Claude 리뷰어 + Sol | Claude Opus 헤드리스(`fix/claude-turn.sh`) |
+| 구현 (UI 아님) | Sol 워커 | **Claude Opus** 워커 (실패 시 Sol) |
+| 구현 (UI) | Sonnet 워커 | Sonnet 워커 |
+| 코드 리뷰 | 작성자와 다른 모델 | Sol(위험 변경은 + Astra) + 지휘 본인 확인 |
+
+- Codex에는 ponytail·하위 에이전트·`team-reviewer`가 없어서, ponytail 사다리는 검토 요청 글로 넣고 조사는
+  지휘가 직접 합니다.
+- 명시 호출 전용(`agents/openai.yaml`). 설치: `~/.agents/skills/team`을 이 폴더에 링크합니다.
+
 ## 파일
 
 - `skills/fix/`: `/fix` 스킬, `claude-turn.sh`(Codex 드라이버용 읽기 전용 Claude 검토자),
   `agents/openai.yaml`(Codex 자동 호출 끔).
 - `skills/team/local.md`, `skills/debate/local.md`: 개인 오버라이드. 원본 문서와 다르면 이쪽이 이깁니다.
+- `skills/team/codex.md`, `skills/team/agents/openai.yaml`: Codex 지휘용 역할 반대 규칙과 자동 호출 끔.
 - `skills/team/sol-turn.sh`: Sol 헤드리스 읽기 전용 호출(`codex exec`, read-only sandbox, 세션 재개 지원).
 - 원본 파일 수정은 `skills/team/SKILL.md`와 `skills/debate/SKILL.md` 첫 단락 아래의 "Local overrides" 한
   단락뿐입니다. 원본 업데이트를 받을 때 충돌이 나도 이 단락뿐이도록, 커스텀은 새 파일에 둡니다.

@@ -24,7 +24,9 @@ spec in the user's language and ask for the answer in it, keeping template headi
 `## Verdict:` as written: English results are what pull the replies into English.
 
 **Local overrides:** if `~/.claude/skills/team/local.md` exists, read it before anything else. Where it
-differs from this file or `foundation.md`, it wins.
+differs from this file or `foundation.md`, it wins. A Codex model reading this folder doesn't stop:
+it reads `local.md`, then `codex.md` next to this file, which overrides the "For Claude Code only"
+line above and both files.
 
 ## Route
 - `/team foundation …`, a new service, or a re-founding → `foundation.md` "Found".

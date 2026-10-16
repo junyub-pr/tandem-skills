@@ -162,8 +162,7 @@ disable-model-invocation: true
   - 작은 수정(대략 3파일 이하, 스키마·결제·migration이 아님): 드라이버가 직접 고친다. 사용자가 워커를
     골랐거나 "○○한테 시켜"라고 했으면 워커가 한다(전역 2절).
   - 큰 수정, 또는 되돌리기 비싼 결정이 필요한 수정: 진단 파일을 배경으로 `/team`에 넘긴다. Claude
-    Code라면 바로 넘긴다. Codex라면 사용자에게 Claude Code에서
-    `/team <진단 파일 경로>의 수정 방안 A 구현`을 실행하라고 안내하고 멈춘다.
+    Code는 `/team`, Codex는 `$team`(`team/codex.md`의 역할 반대 구성)으로 바로 넘긴다.
   - 워커: Orca 안이면 `orchestration` 스킬로 띄운다. UI 작업은 `--agent claude --model sonnet`, 그 외는
     `--agent codex --model gpt-6.1-sol --effort high`. spec에는 진단 파일 경로, 고를 수정 방안, 범위,
     완료 조건, "커밋하지 말 것", 아래 최소 수정 원칙을 넣는다.

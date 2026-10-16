@@ -1,0 +1,5 @@
+interface:
+  display_name: "Team"
+  short_description: "Design, cross-model review and approval, then Claude Orca workers build"
+policy:
+  allow_implicit_invocation: false
