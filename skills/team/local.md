@@ -2,7 +2,7 @@
 
 `SKILL.md` reads this file before anything else. Where this file and `SKILL.md` or `foundation.md`
 differ, this file wins; everything it doesn't mention follows them unchanged. Section names are
-upstream's as of `4230c6a` (2026-10-13): SKILL.md Rules, Feature 1–7, Orca worker, templates D R C G S
+upstream's as of `58026c3` (2026-10-18): SKILL.md Rules, Feature 1–7, Orca worker, templates D R C G S
 T; foundation.md Found 1–6, Milestone run 1–7, Change 1–5.
 
 Upstream dropped Grok on 2026-10-01 (`f437050`). This fork puts **Sol** (GPT-6.1 Sol at high effort,
@@ -230,9 +230,9 @@ Later milestones: `/team <name> M2` → Milestone run 1–7 with the plan in the
 ## T addition: HTML report
 
 Besides the T text in chat, write `/tmp/team/<slug>/report.html` (a Milestone run: one for the
-milestone) and put its absolute path on the first line of the report. One self-contained file (CSS
-in `<style>`, no external scripts, fonts or images), in the user's language, ordered the way the user
-judges it: request → what was built → review rounds (accepted / rebutted) → tests with the command and
+milestone) and put its absolute path on the first line of the report; T's goal check (met / partly /
+not) follows it. One self-contained file (CSS in `<style>`, no external scripts, fonts or images), in
+the user's language, ordered the way the user judges it: request with its goal check → what was built → review rounds (accepted / rebutted) → tests with the command and
 output tail → open issues and backlog. Same privacy rules as chat. Gates (G and the milestone gate)
 stay in chat only.
 
