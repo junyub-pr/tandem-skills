@@ -60,7 +60,7 @@ templates, Long work, Project plan, Milestone run, Test scope, HTML report). Whe
 - **Parallel survey**: Explore agents and the search agent are Claude-only. The driver surveys and
   searches today's options itself (web search, context7); the "≤10 minutes" budget holds.
 - **Implementer routing** (local.md): `opus` replaces `sol` — backend, data, scripts, infra, tests;
-  `sonnet` stays for UI, `gemini` for UI whose look is settled. Template D writes `Implementer: opus |
+  `sonnet` stays for UI, `gemini` only when the user names it. Template D writes `Implementer: opus |
   sonnet | gemini`. `--implementer opus|sonnet|gemini` in the request overrides the routing for the
   whole run.
 - **Orca worker**: start as in SKILL.md with `--agent claude --model opus` or `--agent claude --model

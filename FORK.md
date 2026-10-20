@@ -2,14 +2,14 @@
 
 원본: [sungminpark-biz/tandem-skills](https://github.com/sungminpark-biz/tandem-skills).
 원본이 2026-10-01(`f437050`)에 Grok을 뺀 뒤, 이 포크는 Grok이 맡던 자리를 **Sol**(GPT-6.1 Sol,
-reasoning effort high, Codex CLI)에게 맡깁니다. 시안이나 확정된 화면 설계가 있는 UI는 **Gemini**(Gemini
-CLI)가 구현하고 Claude가 엄격히 검수합니다. 그리고 운영 중인 서비스 안의 긴 작업을 위한 경로를
+reasoning effort high, Codex CLI)에게 맡깁니다. 사용자가 지정한 UI는 **Gemini**(Gemini CLI)가 구현하고
+Claude가 엄격히 검수합니다. 그리고 운영 중인 서비스 안의 긴 작업을 위한 경로를
 더했습니다(아래 "장기 작업").
 
 | 자리 | 원본 | 이 포크 |
 |---|---|---|
 | 구현 (UI 아님) | Sonnet Orca 워커 | **Sol** Orca 워커 (`--agent codex --model gpt-6.1-sol --effort high`) |
-| 구현 (UI) | Sonnet Orca 워커 | Sonnet Orca 워커. 시안(Figma·Claude Design)이나 확정된 화면 설계가 있으면 **Gemini** Orca 워커(`--agent gemini`) |
+| 구현 (UI) | Sonnet Orca 워커 | Sonnet Orca 워커. 사용자가 지정하면 **Gemini** Orca 워커(`--agent gemini`), 시안(Figma·Claude Design)이 없으면 지휘가 화면 설계를 먼저 확정 |
 | 설계·foundation·마일스톤·변경 검토 | Claude 리뷰어 (+ 위험 변경 시 리스크 리뷰어) | 위와 같음 **+ Sol 헤드리스 리뷰어** (병렬, 결과를 기다리지 않음) |
 | 코드 리뷰 | 다른 모델의 Claude 리뷰어 | Sol이 짠 코드는 Sonnet이 리뷰(위험 변경은 Opus). **Sonnet이 짠 코드는 Sol도 리뷰** (마일스톤 실행에서는 위험 슬라이스만). **Gemini가 짠 코드는 Opus 리뷰 + 지휘가 보고 내용 대조·명령 재실행·시안과 화면 비교** |
 | `/debate` 비평가 | `team-reviewer` (다른 Claude 모델) | **Sol** (실패하면 원본 방식으로 대체) |
@@ -66,7 +66,7 @@ CLI)가 구현하고 Claude가 엄격히 검수합니다. 그리고 운영 중�
 | 설계·게이트·결정 | Claude | Codex |
 | 설계 검토 | Claude 리뷰어 + Sol | Claude Opus 헤드리스(`fix/claude-turn.sh`) |
 | 구현 (UI 아님) | Sol 워커 | **Claude Opus** 워커 (실패 시 Sol) |
-| 구현 (UI) | Sonnet 워커 (시안이 있으면 Gemini) | Sonnet 워커 (시안이 있으면 Gemini) |
+| 구현 (UI) | Sonnet 워커 (지정하면 Gemini) | Sonnet 워커 (지정하면 Gemini) |
 | 코드 리뷰 | 작성자와 다른 모델 | Sol(위험 변경은 + Astra) + 지휘 본인 확인. Gemini 코드는 Claude Opus |
 
 - Codex에는 ponytail·하위 에이전트·`team-reviewer`가 없어서, ponytail 사다리는 검토 요청 글로 넣고 조사는

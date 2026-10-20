@@ -8,7 +8,7 @@ T; foundation.md Found 1–6, Milestone run 1–7, Change 1–5.
 Upstream dropped Grok on 2026-10-01 (`f437050`). This fork puts **Sol** (GPT-6.1 Sol at high effort,
 through the Codex CLI) in the seats Grok held: the second model in design reviews, the implementer
 for everything that isn't UI, and an extra code reviewer for code Sonnet writes. **Gemini** (Gemini
-CLI) builds UI whose look is already settled, under a strict Claude check. It also adds a path
+CLI) builds UI only when the user names it, under a strict Claude check. It also adds a path
 for long work inside a running service (Long work, below). The /debate override is in
 `~/.claude/skills/debate/local.md`.
 
@@ -34,10 +34,11 @@ for long work inside a running service (Long work, below). The /debate override 
 
 - **`sol`**, the default: backend, data, scripts, infra, tests — everything that isn't UI.
 - **`sonnet`**: UI work — visual design, front-end screens, components, styles, templates, UI copy.
-- **`gemini`**: UI work whose look is already settled — a mockup exists (a Figma frame, a Claude
-  Design artifact), or the design doc Claude wrote fixes each screen's layout, components, states
-  (empty, loading, error), copy and widths, so the worker makes no visual decision. Not sure it is
-  settled → `sonnet`.
+- **`gemini`**: only when the user names it (in the request or at the gate); routing never picks it,
+  so UI defaults to `sonnet`. Its UI must have a settled look so the worker makes no visual decision:
+  a mockup (a Figma frame, a Claude Design artifact), or else the driver writes, before the gate, a
+  design doc section fixing each screen's layout, components, states (empty, loading, error), copy
+  and widths.
 - Template D adds `Implementer: sol | sonnet | gemini` per chunk (Feature) or per slice (Milestone
   run), a `gemini` one also `Mockup: <Figma URL with node | artifact link | design doc section>`, and
   in a Milestone run `Estimate: <worker minutes>` per slice, passed on in spec S; G and T show them.
