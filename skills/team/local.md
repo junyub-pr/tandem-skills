@@ -2,12 +2,13 @@
 
 `SKILL.md` reads this file before anything else. Where this file and `SKILL.md` or `foundation.md`
 differ, this file wins; everything it doesn't mention follows them unchanged. Section names are
-upstream's as of `58026c3` (2026-10-18): SKILL.md Rules, Feature 1–7, Orca worker, templates D R C G S
+upstream's as of `a4d8827` (2026-10-20): SKILL.md Rules, Feature 1–7, Orca worker, templates D R C G S
 T; foundation.md Found 1–6, Milestone run 1–7, Change 1–5.
 
 Upstream dropped Grok on 2026-10-01 (`f437050`). This fork puts **Sol** (GPT-6.1 Sol at high effort,
 through the Codex CLI) in the seats Grok held: the second model in design reviews, the implementer
-for everything that isn't UI, and an extra code reviewer for code Sonnet writes. It also adds a path
+for everything that isn't UI, and an extra code reviewer for code Sonnet writes. **Gemini** (Gemini
+CLI) builds UI whose look is already settled, under a strict Claude check. It also adds a path
 for long work inside a running service (Long work, below). The /debate override is in
 `~/.claude/skills/debate/local.md`.
 
@@ -29,19 +30,27 @@ for long work inside a running service (Long work, below). The /debate override 
 - Prompts and specs for Sol follow upstream's language rule: written in the user's language, asking
   for answers in it, template headings such as `## Verdict:` kept as written.
 
-## Implementer routing (overrides "a Claude Sonnet worker writes the code": Rules "Roles", Feature 5, Orca worker, template S, Milestone run 5)
+## Implementer routing (overrides SKILL.md's implementer, "Claude Sonnet, or another Orca agent the user names": Rules "Roles", Feature 5, Orca worker, template S, Milestone run 5)
 
 - **`sol`**, the default: backend, data, scripts, infra, tests — everything that isn't UI.
 - **`sonnet`**: UI work — visual design, front-end screens, components, styles, templates, UI copy.
-- Template D adds `Implementer: sol | sonnet` per chunk (Feature) or per slice (Milestone run), and
+- **`gemini`**: UI work whose look is already settled — a mockup exists (a Figma frame, a Claude
+  Design artifact), or the design doc Claude wrote fixes each screen's layout, components, states
+  (empty, loading, error), copy and widths, so the worker makes no visual decision. Not sure it is
+  settled → `sonnet`.
+- Template D adds `Implementer: sol | sonnet | gemini` per chunk (Feature) or per slice (Milestone
+  run), a `gemini` one also `Mockup: <Figma URL with node | artifact link | design doc section>`, and
   in a Milestone run `Estimate: <worker minutes>` per slice, passed on in spec S; G and T show them.
-  Work with both is split into chunks or slices whose files don't overlap, with the contract in the
-  design doc.
-- `--implementer sol|sonnet` in the request overrides the routing for the whole run; "you implement
-  it" still means Claude itself.
+  Work with more than one is split into chunks or slices whose files don't overlap, with the contract
+  in the design doc.
+- `--implementer sol|sonnet|gemini` in the request, or the user at the gate, overrides the routing;
+  no other agent is used. "You implement it" still means Claude itself.
 - A `sol` worker starts like the Orca worker start in SKILL.md, with `--agent codex --model
   gpt-6.1-sol --effort high` in place of `--agent claude --model sonnet` (Milestone run 5's
   child-worktree start too). Its terminal must show GPT-6.1-Sol high, or stop.
+- A `gemini` worker: `--agent gemini` with no `--model`/`--effort` (it runs the model in
+  `~/.gemini/settings.json`, `gemini-4-argon` on 2026-10-20). Its terminal must show Gemini, or stop.
+  Orca 1.4.224 lists the `gemini` agent; not yet run as a worker here (2026-10-20).
 - Spec S for a `sol` worker: replace its ponytail sentence ("ponytail is on: … build everything the
   design specifies.") with:
   ```
@@ -50,23 +59,32 @@ for long work inside a running service (Long work, below). The /debate override 
   처음 '예'가 나오면 거기서 멈춘다. 신뢰 경계의 검증, 데이터 유실 처리, 보안, 접근성은 줄이지 않는다.
   설계 문서가 이긴다: 설계에 있는 것은 모두 만들고, 빼야 할 것 같으면 빼지 말고 묻는다.
   ```
+- Spec S for a `gemini` worker: the same paragraph in place of the ponytail sentence, upstream's
+  CLAUDE.md line for a non-Claude worker, and:
+  ```
+  시안이 정답이다: <Mockup>. 시안과 설계 문서에 있는 화면·요소·문구만 만들고, 없는 것은 만들지 말고
+  ask로 묻는다. 코드베이스와 설치된 라이브러리에 실제로 있는 컴포넌트·props·CSS 토큰·경로만 쓰고, 있는지
+  모르면 먼저 찾아본다. worker_done에는 실제로 실행한 명령과 그 출력 끝부분만 적고, 실행하지 않은
+  확인을 했다고 쓰지 않는다.
+  ```
 - Milestone run 5: dependent slices reuse the worker of their implementer (`--terminal <handle>`); a
-  dependent slice routed to the other implementer gets its own worker in the milestone worktree.
+  dependent slice routed to another implementer gets its own worker in the milestone worktree.
   Parallel slices start their routed agent in their child worktree.
-- **Fallback, one way only:** a `sol` worker that can't do the work (usage limit, auth, launch
-  failure, exits without `worker_done`) → its work moves to a `sonnet` worker; never a `sonnet` chunk
-  to Sol.
+- **Fallback, one way only:** a `sol` or `gemini` worker that can't do the work (usage limit, auth,
+  launch failure, exits without `worker_done`, stalled again after SKILL.md "Stalled worker"'s one
+  restart — overriding its "stop and report") → its work moves to a `sonnet` worker; never a `sonnet`
+  chunk to Sol or Gemini.
   1. `worker-show` its dispatch; not settled → send it Stop as in Change 1, wait until it settles,
      release it. Its file changes stay where they are.
   2. Change that chunk's or slice's `Implementer` line to `sonnet` in the design doc right away, so a
-     resume (another day, another session) doesn't hand it back to Sol.
+     resume (another day, another session) doesn't hand it back to Sol or Gemini.
   3. Start the `sonnet` worker in the same worktree with spec S as upstream wrote it, plus
      "이어서 작업한다. 지금까지 바뀐 파일: <files>".
-  4. T says "Sol → Sonnet: <reason>".
+  4. T says "Sol → Sonnet: <reason>" (or "Gemini → Sonnet").
 - "Apply review: …" goes to the worker that wrote it (Feature 6).
 - No Orca: tell the user to implement the design doc in this repo with `codex -m gpt-6.1-sol -c
-  model_reasoning_effort="high"` (sol) or `claude --model sonnet` (sonnet), in its order and scope
-  without committing, then come back for Feature 6.
+  model_reasoning_effort="high"` (sol), `claude --model sonnet` (sonnet) or `gemini` (gemini), in its
+  order and scope without committing, then come back for Feature 6.
 
 ## The Sol reviewer (Feature 3, Found 5, Milestone run 3, Change 3, Project plan below)
 
@@ -98,10 +116,23 @@ for long work inside a running service (Long work, below). The /debate override 
 ## Code review additions (Feature 6, Milestone run 5)
 
 - Code Sol wrote → Claude reviewer `model: "opus"` for risky slices or chunks (money, auth,
-  data-changing migration); otherwise upstream's `model: "sonnet"` — it is already a different model
-  family. (Measured 2026-10-08, CMS run: 74 reviewer agents, mostly Opus, read 327M tokens.)
-- UI and copy slices or chunks with nothing risky: one code-review round. Accepted fixes are checked by
-  the driver re-running the affected definition-of-done commands, not by a second reviewer round.
+  data-changing migration); otherwise `model: "sonnet"`, overriding upstream's opus for non-Claude
+  code — Sol is already a different model family. (Measured 2026-10-08, CMS run: 74 reviewer agents,
+  mostly Opus, read 327M tokens.)
+- UI and copy slices or chunks with nothing risky (not Gemini's): one code-review round. Accepted
+  fixes are checked by the driver re-running the affected definition-of-done commands, not by a second
+  reviewer round.
+- **Code Gemini wrote** — its reports aren't trusted:
+  1. The driver checks `worker_done` against the worktree: every file it names is in `git diff
+     --stat`, and the driver re-runs every command it claims, not only the definition of done.
+  2. `team-reviewer` `model: "opus"`, rounds until APPROVE. The request adds: "작성자는 없는 API·
+     props·클래스를 지어내고 하지 않은 일을 했다고 보고하는 경향이 있다. 쓰인 import·컴포넌트·props·
+     CSS 토큰·라우트가 코드베이스와 설치된 버전에 실제로 있는지 하나씩 확인하라."
+  3. The driver opens the screen in a browser at the widths the design names (the project's own
+     screenshot loop, e.g. `phonego-design`) and compares it with the mockup; differences go to the
+     fix round.
+  4. A false claim found twice, or the screen still off the mockup after two fix rounds → Fallback to
+     `sonnet`. T counts the false claims.
 - Code Sonnet wrote also gets a Sol code review (template C): in a Feature always, merged whenever it
   lands as in The Sol reviewer's Feature rule; in a Milestone run only for risky slices (money, auth,
   data-changing migration), and waited for before that slice's commit.
@@ -265,8 +296,9 @@ working; these rules then override the ones they name.
    claims per report before accepting it.
 6. **Review cost.** Design: one review per milestone, Sol + one `team-reviewer` (Opus), the reviewer
    also covering the risk view when a slice is risky. Code: Sonnet-written → Sol (template C through
-   `sol-turn.sh`); Sol-written → `team-reviewer` `model: "sonnet"`; risky slices (money, auth,
-   data-changing migration) → `opus` + Sol. Reviewers apply ponytail's ladder in their request; the
-   driver runs `ponytail-review` itself only on a diff over ~800 lines.
+   `sol-turn.sh`); Sol-written → `team-reviewer` `model: "sonnet"`; Gemini-written → Code review
+   additions "Code Gemini wrote"; risky slices (money, auth, data-changing migration) → `opus` + Sol.
+   Reviewers apply ponytail's ladder in their request; the driver runs `ponytail-review` itself only
+   on a diff over ~800 lines.
 7. **Next milestone.** The driver writes the next milestone's design while the current one builds, and
    starts it after the current T when nothing in T is a stop item for it.

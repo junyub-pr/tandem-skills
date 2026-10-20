@@ -47,7 +47,8 @@ templates, Long work, Project plan, Milestone run, Test scope, HTML report). Whe
 - **Rules "Code is reviewed by a different model"**: Claude-written code → Sol (template C through
   `sol-turn.sh`); risky chunks or slices (money, auth, data-changing migration) also get Astra
   (`SOL_MODEL=gpt-6-astra sol-turn.sh`), both waited for. Code the driver wrote itself ("you implement
-  it") → `claude-turn.sh` (Opus). Overrides local.md "Code review additions".
+  it") → `claude-turn.sh` (Opus). Gemini-written code → local.md "Code Gemini wrote" with
+  `claude-turn.sh` (Opus) as its reviewer. Overrides the rest of local.md "Code review additions".
 - **Rules "Preflight"**: instead of the ponytail check, `claude --version` and `codex login status`
   must work (Claude reviewers and workers, Sol reviewers); context7 and the project's database MCP are
   checked with `codex mcp list`, with SKILL.md's stop on "needs authentication".
@@ -59,8 +60,9 @@ templates, Long work, Project plan, Milestone run, Test scope, HTML report). Whe
 - **Parallel survey**: Explore agents and the search agent are Claude-only. The driver surveys and
   searches today's options itself (web search, context7); the "≤10 minutes" budget holds.
 - **Implementer routing** (local.md): `opus` replaces `sol` — backend, data, scripts, infra, tests;
-  `sonnet` stays for UI. Template D writes `Implementer: opus | sonnet`. `--implementer opus|sonnet`
-  in the request overrides the routing for the whole run.
+  `sonnet` stays for UI, `gemini` for UI whose look is settled. Template D writes `Implementer: opus |
+  sonnet | gemini`. `--implementer opus|sonnet|gemini` in the request overrides the routing for the
+  whole run.
 - **Orca worker**: start as in SKILL.md with `--agent claude --model opus` or `--agent claude --model
   sonnet`; the terminal must show that model, or stop. Commands need a command timeout of at least
   180 s (`worker-start`) and 600 s (`check --wait … --timeout-ms 540000`). Orca's "You have N
